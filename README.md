@@ -12,6 +12,9 @@
     		
     		- Entrar entorno (source venv/bin/activate) y actualizar pip con: pip install --upgrade pip
 
-			- Si no esta creado, crear archivo requirements.txt: pip freeze > requirements.txt
+			- Si no esta creado, crear o ir actualizando archivo requirements.txt: pip freeze > requirements.txt
 
 			- pip install -r requirements.txt: Para instalar los requisitos
+
+
+- Tener en cuenta que si se cambia valores de variables de entorno hay que hacer "exit" en el terminal para volver a cargar el entorno virtual y que se actualice.
