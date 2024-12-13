@@ -1,6 +1,69 @@
 import sys
+
+from dotenv import load_dotenv
 from neo4j import GraphDatabase
 import os
+
+Q1 = """
+MATCH (o:Order)-[l:LINE_ITEM]->(ps:PartSup)
+WHERE l.shipdate <= date("2024-05-01")
+WITH l.returnflag AS l_returnflag, l.linestatus AS l_linestatus,
+     sum(l.quantity) AS sum_qty,
+     sum(l.extendedprice) AS sum_base_price,
+     sum(l.extendedprice * (1 - l.discount)) AS sum_disc_price,
+     sum(l.extendedprice * (1 - l.discount) * (1 + l.tax)) AS sum_charge,
+     avg(l.quantity) AS avg_qty,
+     avg(l.extendedprice) AS avg_price,
+     avg(l.discount) AS avg_disc,
+     count(*) AS count_order
+RETURN l_returnflag, l_linestatus, sum_qty, sum_base_price, sum_disc_price, sum_charge, avg_qty, avg_price, avg_disc, count_order
+ORDER BY l_returnflag, l_linestatus;
+"""
+
+Q2 = """ 
+MATCH (p:Part)-[:GIVES_PART]->(ps:PartSup)<-[:SUPPLIES_PART]-(s:Sup),
+      (s)<-[:HAS_SUPPLIER]-(n:Nation)<-[:HAS_NATION]-(r:Region {name: 'Europe'})
+WITH MIN(ps.supplycost) AS min_supplycost
+
+MATCH (p:Part {size: 100})-[:GIVES_PART]->(ps:PartSup {supplycost: min_supplycost})<-[:SUPPLIES_PART]-(s:Sup),
+    (s)<-[:HAS_SUPPLIER]-(n:Nation)<-[:HAS_NATION]-(r:Region {name: 'Europe'})
+WHERE p.type CONTAINS 'TypeA'
+RETURN s.acctbal AS s_acctbal,
+    s.name AS s_name,
+    n.name AS n_name,
+    p.partkey AS p_partkey,
+    p.mfgr AS p_mfgr,
+    s.address AS s_address,
+    s.phone AS s_phone,
+    s.comment AS s_comment
+ORDER BY s.acctbal DESC, n.name, s.name, p.partkey
+"""
+
+Q3 = """
+MATCH (c:Customer)-[:PLACED]->(o:Order)-[l:LINE_ITEM]->(ps:PartSup)
+WHERE c.mktsegment = 'SegmentB' // Segmento de mercado
+    AND o.orderdate < date('2021-03-02') // Fecha en formato 'YYYY-MM-DD'
+    AND l.shipdate > date('2024-04-01') // Fecha en formato 'YYYY-MM-DD'
+WITH o.orderkey AS l_orderkey, 
+     o.orderdate AS o_orderdate,
+     o.shippriority AS o_shippriority,
+     SUM(l.extendedprice * (1 - l.discount)) AS revenue
+RETURN l_orderkey, revenue, o_orderdate, o_shippriority
+ORDER BY revenue DESC, o_orderdate;
+"""
+
+Q4 = """
+MATCH (r:Region)-[:HAS_NATION]->(n:Nation)-[:HAS_CUSTOMER]->(c:Customer)-[:PLACED]->(o:Order)-[l:LINE_ITEM]->(ps:PartSup)<-[:SUPPLIES_PART]-(s:Sup)
+WHERE r.name = 'Asia'
+  AND o.orderdate >= date('2021-01-01')
+  AND o.orderdate < date({ year: date('2021-01-01').year + 1, month: date('2021-01-01').month, day: date('2021-01-01').day })
+WITH n.name AS n_name,
+     SUM(l.extendedprice * (1 - l.discount)) AS revenue
+RETURN n_name, revenue
+ORDER BY revenue DESC;
+"""
+
+
 
 def drop_all_constraints_and_indexes(session):
     # Eliminar todos los constraints
@@ -80,8 +143,8 @@ def create_data(session):
             (n)-[:HAS_SUPPLIER]->(s),
             (n2)-[:HAS_SUPPLIER]->(s2),
 
-            (o: Order {orderkey: "O12345", orderdate: "2021-01-01", shippriority: 1}),
-            (o2: Order {orderkey: "O54321", orderdate: "2021-02-02", shippriority: 2}),
+            (o: Order {orderkey: "O12345", orderdate: date("2021-01-01"), shippriority: 1}),
+            (o2: Order {orderkey: "O54321", orderdate: date("2021-02-02"), shippriority: 2}),
 
             //Relaciones Customer i Order    
             (c)-[:PLACED]->(o),
@@ -124,7 +187,7 @@ def run_explain_and_query(session, query):
 
 
 if __name__ == "__main__":
-
+    load_dotenv()
     NEO4J_URI = os.environ["NEO4J_URI"]
     NEO4J_USER = os.environ["NEO4J_USER"]
     NEO4J_PASSWORD = os.environ["NEO4J_PASSWORD"]
@@ -140,7 +203,7 @@ if __name__ == "__main__":
         print("Error al conectar al servidor de Neo4j:", e)
         sys.exit(1)
 
-    QUERIES = []
+    QUERIES = { "Q1": Q1, "Q2": Q2, "Q3": Q3, "Q4": Q4 }
     
     with driver.session() as session:
 
@@ -152,8 +215,16 @@ if __name__ == "__main__":
         create_data(session)
         print("Nodos, relaciones e índices creados con éxito.")
 
-        #for i, q in enumerate(QUERIES, start=1):
-            #print(f"\n--- Ejecución de consulta {i} ---")
-            #run_explain_and_query(session, q)
+        while True:
+            print("Ingrese la consulta a ejecutar (o 'exit' para salir):")
+            print("[Q1, Q2, Q3, Q4]")
+            query = input()
+            if query == "exit":
+                break
+            if query not in QUERIES:
+                print("Consulta no válida.")
+                continue
+            else:
+                run_explain_and_query(session, QUERIES[query])
 
     driver.close()
