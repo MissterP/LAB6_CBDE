@@ -52,10 +52,9 @@ ORDER BY revenue DESC, o_orderdate;
 """
 
 Q4 = """
-MATCH (r:Region)-[:HAS_NATION]->(n:Nation)-[:HAS_CUSTOMER]->(c:Customer)-[:PLACED]->(o:Order)-[l:LINE_ITEM]->(ps:PartSup)<-[:SUPPLIES_PART]-(s:Sup),
+MATCH (r:Region {name:'Asia'})-[:HAS_NATION]->(n:Nation)-[:HAS_CUSTOMER]->(c:Customer)-[:PLACED]->(o:Order)-[l:LINE_ITEM]->(ps:PartSup)<-[:SUPPLIES_PART]-(s:Sup),
       (n)-[:HAS_SUPPLIER]->(s)  // Asegura que el proveedor está en la misma nación
-WHERE r.name = 'Asia'
-  AND o.orderdate >= date('2021-01-01')
+WHERE o.orderdate >= date('2021-01-01')
   AND o.orderdate < date({ year: date('2021-01-01').year + 1, month: date('2021-01-01').month, day: date('2021-01-01').day })
 WITH n.name AS n_name,
      SUM(l.extendedprice * (1 - l.discount)) AS revenue
