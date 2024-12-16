@@ -54,7 +54,7 @@ ORDER BY revenue DESC, o_orderdate;
 
 Q4 = """
 MATCH (r:Region)-[:HAS_NATION]->(n:Nation)-[:HAS_CUSTOMER]->(c:Customer)-[:PLACED]->(o:Order)-[l:LINE_ITEM]->(ps:PartSup)<-[:SUPPLIES_PART]-(s:Sup),
-      (s)-[:HAS_SUPPLIER]->(n)  // Asegura que el proveedor está en la misma nación
+      (n)-[:HAS_SUPPLIER]->(s)  // Asegura que el proveedor está en la misma nación
 WHERE r.name = 'Asia'
   AND o.orderdate >= date('2021-01-01')
   AND o.orderdate < date({ year: date('2021-01-01').year + 1, month: date('2021-01-01').month, day: date('2021-01-01').day })
@@ -92,6 +92,8 @@ def create_indices_and_constraints(session):
     session.run("CREATE INDEX shipdate FOR ()-[l:LINE_ITEM]->() ON (l.shipdate)")
 
     session.run("CREATE INDEX size_type FOR (p:Part) ON (p.size, p.type)")
+    session.run("CREATE INDEX supplycost_index FOR (ps:PartSup) ON (ps.supplycost)")
+
     session.run("CREATE INDEX name FOR (r:Region) ON (r.name)")
 
     session.run("CREATE INDEX c_mktsegment FOR (c:Customer) ON (c.mktsegment)")
