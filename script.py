@@ -40,9 +40,8 @@ ORDER BY s.acctbal DESC, n.name, s.name, p.partkey
 """
 
 Q3 = """
-MATCH (c:Customer)-[:PLACED]->(o:Order)-[l:LINE_ITEM]->(ps:PartSup)
-WHERE c.mktsegment = 'SegmentB' // Segmento de mercado
-    AND o.orderdate < date('2021-03-02') // Fecha en formato 'YYYY-MM-DD'
+MATCH (c:Customer {mktsegment: 'SegmentB'})-[:PLACED]->(o:Order)-[l:LINE_ITEM]->(ps:PartSup)
+WHERE o.orderdate < date('2021-03-02') // Fecha en formato 'YYYY-MM-DD'
     AND l.shipdate > date('2024-04-01') // Fecha en formato 'YYYY-MM-DD'
 WITH o.orderkey AS l_orderkey, 
      o.orderdate AS o_orderdate,
@@ -219,7 +218,7 @@ if __name__ == "__main__":
             if query not in QUERIES:
                 print("Consulta no válida.")
                 continue
-            else:
-                run_explain_and_query(session, QUERIES[query])
+
+            run_explain_and_query(session, QUERIES[query])
 
     driver.close()
