@@ -53,7 +53,8 @@ ORDER BY revenue DESC, o_orderdate;
 """
 
 Q4 = """
-MATCH (r:Region)-[:HAS_NATION]->(n:Nation)-[:HAS_CUSTOMER]->(c:Customer)-[:PLACED]->(o:Order)-[l:LINE_ITEM]->(ps:PartSup)<-[:SUPPLIES_PART]-(s:Sup)
+MATCH (r:Region)-[:HAS_NATION]->(n:Nation)-[:HAS_CUSTOMER]->(c:Customer)-[:PLACED]->(o:Order)-[l:LINE_ITEM]->(ps:PartSup)<-[:SUPPLIES_PART]-(s:Sup),
+      (s)-[:HAS_SUPPLIER]->(n)  // Asegura que el proveedor está en la misma nación
 WHERE r.name = 'Asia'
   AND o.orderdate >= date('2021-01-01')
   AND o.orderdate < date({ year: date('2021-01-01').year + 1, month: date('2021-01-01').month, day: date('2021-01-01').day })
@@ -66,13 +67,11 @@ ORDER BY revenue DESC;
 
 
 def drop_all_constraints_and_indexes(session):
-    # Eliminar todos los constraints
     constraints = session.run("SHOW CONSTRAINTS")
     for record in constraints:
         constraint_name = record["name"]
         session.run(f"DROP CONSTRAINT {constraint_name}")
     
-    # Eliminar todos los índices
     indexes = session.run("SHOW INDEXES")
     for record in indexes:
         index_name = record["name"]
@@ -82,7 +81,7 @@ def clear_database(session):
     session.run("MATCH (n) DETACH DELETE n")
 
 def create_indices_and_constraints(session):
-    #Constraints
+
     session.run("CREATE CONSTRAINT FOR (p:Part) REQUIRE p.partkey IS UNIQUE")
     session.run("CREATE CONSTRAINT FOR (s:Sup) REQUIRE s.suppkey IS UNIQUE")
     session.run("CREATE CONSTRAINT FOR (c:Customer) REQUIRE c.custkey IS UNIQUE")
@@ -90,22 +89,16 @@ def create_indices_and_constraints(session):
     session.run("CREATE CONSTRAINT FOR (n:Nation) REQUIRE n.nationkey IS UNIQUE")
     session.run("CREATE CONSTRAINT FOR (r:Region) REQUIRE r.regionkey IS UNIQUE")
 
-    #Indices querys WHERE
-    #Q1
     session.run("CREATE INDEX shipdate FOR ()-[l:LINE_ITEM]->() ON (l.shipdate)")
-    #Q2
+
     session.run("CREATE INDEX size_type FOR (p:Part) ON (p.size, p.type)")
     session.run("CREATE INDEX name FOR (r:Region) ON (r.name)")
-    #Q3
+
     session.run("CREATE INDEX c_mktsegment FOR (c:Customer) ON (c.mktsegment)")
     session.run("CREATE INDEX o_orderdate FOR (o:Order) ON (o.orderdate)")
-    #Indice shipdate ya creado en Q1
-    #Q4
-    #Indices para name de region y orderdate de order ya creados en Q2 y Q3
     print("Índices y restricciones creados con éxito.")
 
 def create_data(session):
-    #Hay que revisar la dirección de las relaciones para que sea lo mas optimas o si hace falta duplicar relacion. Esto se debe porque son dirigidas.
     session.run("""
         CREATE 
             (p:Part {partkey: "P12345", mfgr: "ManufacturerX", type: "TypeA", size: 100}),
